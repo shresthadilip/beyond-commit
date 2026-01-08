@@ -1,0 +1,41 @@
+name: Develop CI
+
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  test-and-build:
+    name: Test & Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node used for testing (Example)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Install Dependencies
+        run: echo "Installing dependencies..." # npm ci
+        
+      - name: Run Tests
+        run: echo "Running unit tests..." # npm test
+        
+      - name: Build Project
+        run: echo "Building project..." # npm run build
+
+  deploy-dev:
+    name: Deploy to Dev
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    environment: development
+    steps:
+      - name: Deploy to Dev Server
+        run: |
+          echo "Deploying to development environment..."
+          echo "Application is now live at dev.example.com"
+          
+      - name: Notify Team
+        run: echo "Dev deployment successful."

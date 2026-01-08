@@ -1,0 +1,67 @@
+name: Cut Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  create-release-branch:
+    name: Calculate Version & Cut Branch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Need full history to analyze commits
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install SemVer Tools
+        run: npm install -g conventional-recommended-bump conventional-changelog-angular semver
+
+      - name: Calculate Next Version
+        id: next_version
+        run: |
+          # Get the latest tag, default to v0.0.0 if none
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Last tag: $LAST_TAG"
+          
+          # Analyze commits since last tag to recommend bump (major, minor, or patch)
+          RECOMMENDED_BUMP=$(conventional-recommended-bump -p angular)
+          echo "Recommended bump: $RECOMMENDED_BUMP"
+          
+          # Clean 'v' from tag for calculation
+          CLEAN_VERSION=${LAST_TAG#v}
+          
+          # Calculate next version using semver cli
+          NEXT_VERSION=$(semver $CLEAN_VERSION -i $RECOMMENDED_BUMP)
+          echo "Next version: v$NEXT_VERSION"
+          
+          echo "tag=v$NEXT_VERSION" >> $GITHUB_OUTPUT
+
+
+      - name: Create Release Branch
+        id: create_branch
+        env:
+          NEXT_TAG: ${{ steps.next_version.outputs.tag }}
+        run: |
+          BRANCH_NAME="release/$NEXT_TAG"
+          echo "Creating branch: $BRANCH_NAME"
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git checkout -b $BRANCH_NAME
+          git push origin $BRANCH_NAME
+          
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "tag=$NEXT_TAG" >> $GITHUB_OUTPUT
+          echo "✅ Successfully created $BRANCH_NAME"
+
+
